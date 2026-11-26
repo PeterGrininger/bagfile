@@ -8,6 +8,12 @@ import rosbag2_py
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 
+# Repo-Ordnerstruktur: Scripts/ (dieses Skript), Messaufnahmen/, Results/, Images/
+REPO_DIR = Path(__file__).resolve().parent.parent
+BAG_DIR = REPO_DIR / 'Messaufnahmen'
+RESULTS_DIR = REPO_DIR / 'Results'
+IMAGES_DIR = REPO_DIR / 'Images'
+
 
 def percentile(sorted_values: list[float], fraction: float) -> float:
     position = (len(sorted_values) - 1) * fraction
@@ -90,7 +96,7 @@ def analyze_bag(bag_path: Path, topic_name: str) -> None:
     bin_count = choose_bin_count(sums)
     bin_width = (sorted_sums[-1] - sorted_sums[0]) / bin_count
 
-    csv_path = Path.cwd() / 'scan_summen.csv'
+    csv_path = RESULTS_DIR / 'scan_summen.csv'
     with csv_path.open('w', newline='', encoding='utf-8') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(
@@ -115,7 +121,7 @@ def analyze_bag(bag_path: Path, topic_name: str) -> None:
     axis.grid(axis='y', alpha=0.3)
     figure.tight_layout()
 
-    plot_path = Path.cwd() / 'scan_summen_histogramm.png'
+    plot_path = IMAGES_DIR / 'scan_summen_histogramm.png'
     figure.savefig(plot_path, dpi=150)
 
     mean_sum = sum(sums) / len(sums)
@@ -159,7 +165,7 @@ def analyze_bag(bag_path: Path, topic_name: str) -> None:
 
 
 def main() -> None:
-    default_bag = Path(__file__).resolve().parent / 'subset_5minSTILL'
+    default_bag = BAG_DIR / 'subset_5minSTILL'
     parser = argparse.ArgumentParser(
         description=(
             'Summiert die gueltigen Laserentfernungen pro Scan und erstellt '
@@ -176,6 +182,8 @@ def main() -> None:
     parser.add_argument('--topic', default='/scan', help='Topic (Standard: /scan)')
     args = parser.parse_args()
 
+    if not args.bag.exists() and (BAG_DIR / args.bag).exists():
+        args.bag = BAG_DIR / args.bag  # nur der Bag-Name angegeben
     if not args.bag.exists():
         parser.error(f'Bag-Verzeichnis nicht gefunden: {args.bag}')
 

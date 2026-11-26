@@ -6,6 +6,12 @@ import rosbag2_py
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 
+# Repo-Ordnerstruktur: Scripts/ (dieses Skript), Messaufnahmen/, Results/, Images/
+REPO_DIR = Path(__file__).resolve().parent.parent
+BAG_DIR = REPO_DIR / 'Messaufnahmen'
+RESULTS_DIR = REPO_DIR / 'Results'
+IMAGES_DIR = REPO_DIR / 'Images'
+
 
 def analyze_bag(bag_path: Path, topic_name: str) -> None:
     reader = rosbag2_py.SequentialReader()
@@ -76,7 +82,7 @@ def analyze_bag(bag_path: Path, topic_name: str) -> None:
 
 
 def main() -> None:
-    default_bag = Path(__file__).resolve().parent / 'subset_5minSTILL'
+    default_bag = BAG_DIR / 'subset_5minSTILL'
     parser = argparse.ArgumentParser(
         description='Zaehlt alle LaserScan-Messwerte in einer ROS-2-Bag.'
     )
@@ -90,6 +96,8 @@ def main() -> None:
     parser.add_argument('--topic', default='/scan', help='Topic (Standard: /scan)')
     args = parser.parse_args()
 
+    if not args.bag.exists() and (BAG_DIR / args.bag).exists():
+        args.bag = BAG_DIR / args.bag  # nur der Bag-Name angegeben
     if not args.bag.exists():
         parser.error(f'Bag-Verzeichnis nicht gefunden: {args.bag}')
 

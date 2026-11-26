@@ -11,6 +11,12 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 
+# Repo-Ordnerstruktur: Scripts/ (dieses Skript), Messaufnahmen/, Results/, Images/
+REPO_DIR = Path(__file__).resolve().parent.parent
+BAG_DIR = REPO_DIR / 'Messaufnahmen'
+RESULTS_DIR = REPO_DIR / 'Results'
+IMAGES_DIR = REPO_DIR / 'Images'
+
 
 class ScanStatisticsNode(Node):
 
@@ -104,7 +110,7 @@ class ScanStatisticsNode(Node):
             for index, count in enumerate(self.counts)
         ]
 
-        csv_path = Path.cwd() / 'scan_statistik.csv'
+        csv_path = RESULTS_DIR / 'scan_statistik.csv'
         with csv_path.open('w', newline='', encoding='utf-8') as csv_file:
             writer = csv.writer(csv_file)
             writer.writerow(
@@ -139,7 +145,7 @@ class ScanStatisticsNode(Node):
         for axis in axes:
             axis.grid(True, alpha=0.3)
         figure.tight_layout()
-        plot_path = Path.cwd() / 'scan_statistik.png'
+        plot_path = IMAGES_DIR / 'scan_statistik.png'
         figure.savefig(plot_path, dpi=150)
         self.figure = figure
 
@@ -155,7 +161,7 @@ class ScanStatisticsNode(Node):
 
 
 def main(args=None) -> None:
-    default_bag = Path(__file__).resolve().parent / 'subset_5minSTILL'
+    default_bag = BAG_DIR / 'subset_5minSTILL'
     parser = argparse.ArgumentParser(
         description=(
             'Spielt eine ROS-2-Bag ab, berechnet Scan-Statistiken und '
@@ -171,6 +177,8 @@ def main(args=None) -> None:
     )
     parser.add_argument('--rate', type=float, default=20.0)
     options = parser.parse_args(args)
+    if not options.bag.exists() and (BAG_DIR / options.bag).exists():
+        options.bag = BAG_DIR / options.bag  # nur der Bag-Name angegeben
     if not options.bag.exists():
         parser.error(f'Bag-Verzeichnis nicht gefunden: {options.bag}')
     if options.rate <= 0:
