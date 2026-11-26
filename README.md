@@ -108,6 +108,34 @@ Nach der Auswertung werden im aktuellen Arbeitsordner gespeichert:
 
 `NaN`/`Inf`-Werte und Distanzen ausserhalb der in der Nachricht angegebenen Reichweite werden bei den Statistiken ausgelassen. Die Varianz wird als Populationsvarianz berechnet.
 
+## Skript: Histogramm der Entfernungssummen
+
+`scan_summen_histogramm.py` liest die Bag direkt ein und bildet fuer jeden `/scan` die Summe aller gueltigen Entfernungsmesswerte. Anschliessend zeigt es ein interaktives Histogramm und speichert zusaetzlich die Einzelsummen:
+
+```bash
+python3 scan_summen_histogramm.py
+```
+
+Standardmaessig wird `subset_5minSTILL` ausgewertet. Eine andere Bag oder ein anderes Topic kann so angegeben werden:
+
+```bash
+python3 scan_summen_histogramm.py subset_5min_90d
+python3 scan_summen_histogramm.py subset_5min_90d --topic /scan
+```
+
+Die Anzahl der Histogrammklassen wird mit der Freedman-Diaconis-Regel aus der Streuung der Summen bestimmt und auf maximal 100 Klassen begrenzt. Das Programm gibt ausserdem Anzahl der Scans, Mittelwert, Median, Standardabweichung und Wertebereich der Summen aus.
+
+Ausgaben im aktuellen Arbeitsordner:
+
+- `scan_summen.csv`: Summe und Anzahl gueltiger Entfernungsmessungen pro Scan.
+- `scan_summen_histogramm.png`: statischer Export des Histogramms; zusaetzlich bleibt das interaktive Fenster geoeffnet.
+
+Die Histogramm-Achse und die Hauptausgabe zeigen Summen in Millimetern; die Ausgabe nennt den umgerechneten Meterwert in Klammern. Die CSV enthaelt die Summe sowohl in Metern (`sum_distance_m`) als auch in Millimetern (`sum_distance_mm`). ROS `LaserScan` speichert Einzelentfernungen in Metern; die Millimeterwerte sind nur eine Umrechnung zur leichteren Lesbarkeit.
+
+Ungueltige Werte (`NaN`/`Inf`) sowie Entfernungen ausserhalb des im Scan angegebenen Messbereichs werden nicht summiert. Eine Entfernungssumme ist die Summe vieler radialer Messwerte in unterschiedlichen Richtungen und daher keine einzelne Distanz zum Objekt. Sie beschreibt vor allem die Gesamtstruktur der erfassten Umgebung und kann sich auch durch fehlende/ungueltige Strahlen veraendern.
+
+Bei `subset_5minSTILL` wurden 1.542 Scans ausgewertet. Die Summen liegen zwischen etwa 233,8 m und 240,1 m, bei einem Mittelwert von 238,6 m und einer Standardabweichung von 0,77 m. Der Grossteil liegt zwischen etwa 238,5 m und 239,7 m; wenige deutlich kleinere Summen bilden einen linken Auslaeufer. Das kann auf einzelne Scans mit anderer Sicht auf die Umgebung oder mehr ungueltigen Messstrahlen hindeuten. Die Summen allein zeigen nicht, welche Winkel oder Objekte dafuer verantwortlich sind; dafuer ist die richtungsbezogene Statistik aus `scan_statistik.py` hilfreicher.
+
 ## Typischer Ablauf
 
 ```bash
@@ -115,6 +143,7 @@ cd "$HOME/ARS_LABOR 1/ARS_LABOR/bagfile"
 source install/setup.bash
 python3 messwert_aufloesung.py
 python3 scan_statistik.py
+python3 scan_summen_histogramm.py
 ```
 
-Der erste Befehl liest die Bag direkt und gibt die Scanner-Parameter aus. Der zweite startet die Bag automatisch, sammelt die Statistik und zeigt anschliessend den Plot.
+Das erste Skript liest die Bag direkt und gibt die Scanner-Parameter aus. Das zweite startet die Bag automatisch, sammelt die Statistik und zeigt anschliessend den Plot. Das dritte liest die Bag direkt und zeigt das Histogramm der Entfernungssummen.
