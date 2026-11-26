@@ -1,10 +1,10 @@
+import argparse
 import csv
 import math
+import subprocess
+import time
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import rclpy
 from rclpy.node import Node
@@ -32,6 +32,7 @@ class ScanStatisticsNode(Node):
         self.angle_increment = None
         self.layout_warning_logged = False
         self.results_saved = False
+        self.figure = None
 
     def callback(self, msg: LaserScan) -> None:
         if self.angle_min is None:
@@ -140,7 +141,7 @@ class ScanStatisticsNode(Node):
         figure.tight_layout()
         plot_path = Path.cwd() / 'scan_statistik.png'
         figure.savefig(plot_path, dpi=150)
-        plt.close(figure)
+        self.figure = figure
 
         print(f'Topic: {self.topic_name}')
         print(f'Ausgewertete Scans: {self.scan_count}')
@@ -154,17 +155,72 @@ class ScanStatisticsNode(Node):
 
 
 def main(args=None) -> None:
-    rclpy.init(args=args)
+    default_bag = Path(__file__).resolve().parent / 'subset_5minSTILL'
+    parser = argparse.ArgumentParser(
+        description=(
+            'Spielt eine ROS-2-Bag ab, berechnet Scan-Statistiken und '
+            'oeffnet anschliessend einen interaktiven Plot.'
+        )
+    )
+    parser.add_argument(
+        'bag',
+        nargs='?',
+        type=Path,
+        default=default_bag,
+        help=f'Bag-Verzeichnis (Standard: {default_bag})',
+    )
+    parser.add_argument('--rate', type=float, default=20.0)
+    options = parser.parse_args(args)
+    if not options.bag.exists():
+        parser.error(f'Bag-Verzeichnis nicht gefunden: {options.bag}')
+    if options.rate <= 0:
+        parser.error('--rate muss groesser als 0 sein')
+
+    rclpy.init(args=None)
     node = ScanStatisticsNode()
+    player = None
     try:
-        rclpy.spin(node)
+        discovery_deadline = time.monotonic() + 1.0
+        while time.monotonic() < discovery_deadline:
+            rclpy.spin_once(node, timeout_sec=0.1)
+
+        player = subprocess.Popen(
+            [
+                'ros2',
+                'bag',
+                'play',
+                str(options.bag.resolve()),
+                '--rate',
+                str(options.rate),
+            ]
+        )
+        print(
+            f'Spiele {options.bag} mit Rate {options.rate:g}x ab. '
+            'Die Auswertung startet automatisch.'
+        )
+        while player.poll() is None:
+            rclpy.spin_once(node, timeout_sec=0.1)
+
+        drain_deadline = time.monotonic() + 0.5
+        while time.monotonic() < drain_deadline:
+            rclpy.spin_once(node, timeout_sec=0.05)
+
+        if player.returncode != 0:
+            print(f'ros2 bag play wurde mit Status {player.returncode} beendet.')
     except KeyboardInterrupt:
-        pass
+        print('Auswertung durch Benutzer abgebrochen.')
     finally:
-        node.save_results()
+        if player is not None and player.poll() is None:
+            player.terminate()
+            player.wait()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+        node.save_results()
+
+    if node.figure is not None:
+        print('Das Plot-Fenster bleibt offen, bis es geschlossen wird.')
+        plt.show()
 
 
 if __name__ == '__main__':
